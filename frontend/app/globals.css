@@ -1,0 +1,78 @@
+@import 'tailwindcss';
+
+/*
+ * Se redefine el breakpoint `sm` a 500px: es el límite que pide el spec
+ * del proyecto entre el layout de celular (<500px, sin prefijo) y el de
+ * monitor (>=500px, prefijo `sm:`). Todo el resto de la escala de Tailwind
+ * queda igual.
+ */
+@theme {
+  --breakpoint-sm: 31.25rem; /* 500px */
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Paleta de marca (color1..color5, de más claro/saturado a más oscuro):
+ * #A428A9 magenta · #542D79 morado · #183C74 azul · #2A1D59 índigo · #080E21 casi negro.
+ * Es un tema oscuro por naturaleza, así que se aplica igual en :root y en
+ * .dark — no hay toggle de tema todavía, la app siempre se ve así.
+ */
+:root,
+.dark {
+  --background: #080e21; /* color5 */
+  --foreground: #ece8f7;
+  --surface: #2a1d59; /* color4 */
+  --surface-raised: #392770;
+  --border-soft: #183c74; /* color3 */
+  --muted: #9c90bf;
+
+  --primary: #a428a9; /* color1 */
+  --primary-foreground: #ffffff;
+  --accent: #542d79; /* color2 */
+
+  --danger: #e0524f;
+  --danger-soft: #3a1b22;
+  --success: #4fce9a;
+  --success-soft: #123024;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border-soft: var(--border-soft);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-handwriting: var(--font-caveat);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-soft) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-soft);
+  border-radius: 999px;
+}
