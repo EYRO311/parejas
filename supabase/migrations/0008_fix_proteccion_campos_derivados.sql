@@ -15,24 +15,40 @@
 -- prende justo antes de escribir, y que el trigger de protección exige
 -- para dejar pasar el cambio. Un PATCH directo a PostgREST con el anon
 -- key (sin pasar por el recálculo) sigue bloqueado igual que antes.
+--
+-- De paso, fn_recalcular_costo_salida / fn_recalcular_objetivo_presupuesto
+-- ahora recalculan tanto el registro viejo como el nuevo si salida_id /
+-- presupuesto_id llegan a reasignarse (antes solo recalculaban uno de los
+-- dos lados, dejando al otro con un total stale).
 
+-- Combina el fix de la bandera de protección (abajo) con el de recalcular
+-- ambos lados cuando pagos_salida.salida_id cambia de valor (ver 0004).
 create or replace function public.fn_recalcular_costo_salida()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  v_salida_id uuid := coalesce(new.salida_id, old.salida_id);
 begin
   perform set_config('finanzas.recalculo_costo_total', 'on', true);
 
-  update public.salidas
-  set costo_total = coalesce(
-    (select sum(monto) from public.pagos_salida where salida_id = v_salida_id),
-    0
-  )
-  where id = v_salida_id;
+  if old.salida_id is not null then
+    update public.salidas
+    set costo_total = coalesce(
+      (select sum(monto) from public.pagos_salida where salida_id = old.salida_id),
+      0
+    )
+    where id = old.salida_id;
+  end if;
+
+  if new.salida_id is not null and new.salida_id is distinct from old.salida_id then
+    update public.salidas
+    set costo_total = coalesce(
+      (select sum(monto) from public.pagos_salida where salida_id = new.salida_id),
+      0
+    )
+    where id = new.salida_id;
+  end if;
 
   return null;
 end;
@@ -51,23 +67,33 @@ begin
 end;
 $$;
 
+-- Mismo criterio: recalcula ambos presupuestos si presupuesto_id cambia.
 create or replace function public.fn_recalcular_objetivo_presupuesto()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  v_presupuesto_id uuid := coalesce(new.presupuesto_id, old.presupuesto_id);
 begin
   perform set_config('finanzas.recalculo_objetivo_total', 'on', true);
 
-  update public.presupuestos_quincenales
-  set monto_objetivo_total = coalesce(
-    (select sum(monto_comprometido) from public.aportes_presupuesto where presupuesto_id = v_presupuesto_id),
-    0
-  )
-  where id = v_presupuesto_id;
+  if old.presupuesto_id is not null then
+    update public.presupuestos_quincenales
+    set monto_objetivo_total = coalesce(
+      (select sum(monto_comprometido) from public.aportes_presupuesto where presupuesto_id = old.presupuesto_id),
+      0
+    )
+    where id = old.presupuesto_id;
+  end if;
+
+  if new.presupuesto_id is not null and new.presupuesto_id is distinct from old.presupuesto_id then
+    update public.presupuestos_quincenales
+    set monto_objetivo_total = coalesce(
+      (select sum(monto_comprometido) from public.aportes_presupuesto where presupuesto_id = new.presupuesto_id),
+      0
+    )
+    where id = new.presupuesto_id;
+  end if;
 
   return null;
 end;

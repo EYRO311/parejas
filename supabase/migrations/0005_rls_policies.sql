@@ -180,8 +180,15 @@ create policy pagos_salida_insert on public.pagos_salida
     and exists (select 1 from public.salidas s where s.id = salida_id and public.es_miembro_grupo(s.grupo_id))
   );
 
+-- with check re-valida el destino: no basta con ser dueño del pago, la
+-- salida a la que quede asignado (si se reasigna salida_id) también debe
+-- pertenecer a un grupo del que el usuario sea miembro.
 create policy pagos_salida_update on public.pagos_salida
-  for update using (usuario_id = auth.uid());
+  for update using (usuario_id = auth.uid())
+  with check (
+    usuario_id = auth.uid()
+    and exists (select 1 from public.salidas s where s.id = salida_id and public.es_miembro_grupo(s.grupo_id))
+  );
 
 create policy pagos_salida_delete on public.pagos_salida
   for delete using (usuario_id = auth.uid());
@@ -253,6 +260,14 @@ create policy aportes_insert on public.aportes_presupuesto
     )
   );
 
+-- Mismo criterio que pagos_salida_update: si se reasigna presupuesto_id,
+-- el nuevo presupuesto también debe ser de un grupo del que es miembro.
 create policy aportes_update on public.aportes_presupuesto
   for update using (usuario_id = auth.uid())
-  with check (usuario_id = auth.uid());
+  with check (
+    usuario_id = auth.uid()
+    and exists (
+      select 1 from public.presupuestos_quincenales p
+      where p.id = presupuesto_id and public.es_miembro_grupo(p.grupo_id)
+    )
+  );

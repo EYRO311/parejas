@@ -1,9 +1,8 @@
 # Finanzas en Pareja
 
 Módulo de finanzas compartidas (pareja / familia / roommates) sobre Supabase,
-con backend en capas ruta → controller → model. **Esta etapa solo cubre
-schema de base de datos y backend**; el frontend no está implementado
-todavía a propósito.
+con backend en capas ruta → controller → model y frontend en Next.js (App
+Router). Sin deploy activo todavía.
 
 ## ⚠️ Supuesto importante sobre la app base "Finanzas"
 
@@ -26,11 +25,14 @@ Si el proyecto "Finanzas" real ya existe en otro lugar:
 ```
 supabase/
   migrations/
-    0001_extensiones_y_tipos.sql       -- pgcrypto + enums
-    0002_tablas_base_asumidas.sql      -- usuarios, categorias, gastos (ver supuesto arriba)
-    0003_finanzas_pareja_tablas.sql    -- grupos, salidas, presupuestos, etc.
-    0004_funciones_y_triggers.sql      -- helpers RLS, campos derivados, invitaciones
-    0005_rls_policies.sql              -- políticas RLS
+    0001_extensiones_y_tipos.sql            -- pgcrypto + enums
+    0002_tablas_base_asumidas.sql           -- usuarios, categorias, gastos (ver supuesto arriba)
+    0003_finanzas_pareja_tablas.sql         -- grupos, salidas, presupuestos, etc.
+    0004_funciones_y_triggers.sql           -- helpers RLS, campos derivados, invitaciones
+    0005_rls_policies.sql                   -- políticas RLS
+    0006_usuarios_trigger_alta.sql          -- alta automática en public.usuarios al registrarse
+    0007_quincena_automatica.sql            -- quincenas MX (1-15 / 16-fin) auto-creadas
+    0008_fix_proteccion_campos_derivados.sql -- corrige candado de costo_total/monto_objetivo_total
 backend/
   api/index.ts          -- entrypoint serverless para Vercel
   src/
@@ -41,6 +43,16 @@ backend/
     controllers/            -- validación de input + orquestación
     models/                  -- acceso a datos (supabase-js)
     types/                    -- tipos de fila + augmentación de Express.Request
+frontend/
+  app/                  -- App Router: /login, /grupos, /grupos/[grupoId]/{salidas,presupuesto,categorias,miembros}
+  components/
+    atoms/ molecules/ organisms/   -- atomic design
+    layout/               -- AppShell + navPresets
+  services/               -- un *.service.ts por recurso, llama al backend con el JWT de Supabase
+  lib/
+    supabase/             -- clientes @supabase/ssr (client, server, middleware)
+    useSession.ts          -- hook de sesión en cliente
+    types.ts                -- tipos espejo de las tablas
 ```
 
 ## Modelo de datos
@@ -71,6 +83,69 @@ de negocio implementadas a nivel de base de datos (no solo backend):
   controller (`verificarPertenenciaGrupo`) antes de escribir, como pide el
   enunciado — RLS es la autoridad final, el controller da mensajes de error
   claros.
+- **Quincenas automáticas** (`0007`): `obtener_o_crear_presupuesto_actual(grupo_id)`
+  calcula la quincena estándar mexicana (1-15 y 16-fin de mes) de la fecha
+  actual y crea el presupuesto la primera vez que alguien del grupo la
+  consulta. Nadie captura fechas a mano.
+- **Alta automática de usuario** (`0006`): trigger `on_auth_user_created_finanzas`
+  → `handle_new_user_finanzas()` puebla `public.usuarios` al registrarse en
+  Supabase Auth. Nombrado distinto de `handle_new_user()` a propósito porque
+  este proyecto de Supabase es compartido con otra app (`asistente`), que ya
+  tiene su propio trigger poblando `public.profiles`; ambos conviven sin
+  pisarse.
+
+## Endurecimiento aplicado antes del primer deploy a Supabase
+
+Revisión de lógica sobre las migraciones (todavía no aplicadas a un
+proyecto real) que encontró y corrigió 5 problemas, todos ya reflejados en
+`0003`, `0004`, `0005` y `0008` — no hay una migración `0009` separada
+porque nada se había subido aún:
+
+- **`recalcular_gastado_real()` sin autorización interna** — al ser
+  `SECURITY DEFINER` quedaba expuesta por defecto como RPC de PostgREST a
+  cualquier usuario autenticado, que podía pasar el `usuario_id`/`grupo_id`
+  de otra persona. Ahora exige `auth.role() = 'service_role'` (como la
+  llama el backend) o, si se llama con JWT de usuario, que
+  `auth.uid() = p_usuario_id` y que sea miembro de `p_grupo_id`.
+- **`generar_codigo_invitacion()` podía devolver un código ya usado** —
+  no era `SECURITY DEFINER` (su `select` corría bajo el RLS del llamador,
+  sin ver invitaciones de otros grupos) y solo revisaba códigos
+  `estado = 'activo'`, aunque `codigo` es `unique` a nivel de toda la
+  tabla. Ahora es `SECURITY DEFINER` y el chequeo de colisión ignora el
+  estado.
+- **`pagos_salida_update` / `aportes_update` no revalidaban el padre** —
+  solo exigían ser el dueño del registro; ahora, si se reasigna
+  `salida_id`/`presupuesto_id`, el `with check` exige que el nuevo destino
+  también pertenezca a un grupo del que el usuario es miembro (mismo
+  criterio que ya aplicaban las policies de `insert`).
+- **Los triggers de recálculo no cubrían la reasignación de FK** —
+  `fn_recalcular_costo_salida`/`fn_recalcular_objetivo_presupuesto` solo
+  reaccionaban a cambios de monto; ahora también reaccionan a
+  `update of salida_id` / `presupuesto_id` y recalculan tanto el registro
+  viejo como el nuevo.
+- **FKs hacia `usuarios` sin `on delete`** — `grupos.creado_por`,
+  `salidas.creado_por`, `pagos_salida.usuario_id`,
+  `reparto_salida.usuario_id`, `aportes_presupuesto.usuario_id` e
+  `invitaciones_grupo.creado_por` no tenían acción de borrado (default
+  `NO ACTION`), así que borrar un `auth.users` con actividad rompía el
+  cascade desde `usuarios`. Ahora son nullable con `on delete set null`:
+  se preserva el historial financiero, solo se pierde la identidad del
+  creador/pagador. (Pendiente aparte: los tipos TS en
+  `backend/src/types/index.ts` / `frontend/lib/types.ts` siguen marcando
+  esos campos como no-nulos; ajustar si algún día se implementa borrar
+  cuenta.)
+
+## Frontend
+
+Next.js 15 (App Router) + React 19 + Tailwind 4, organizado con atomic
+design (`components/atoms|molecules|organisms`) y una capa `services/*.ts`
+por recurso que llama al backend con el JWT de la sesión de Supabase
+(`lib/useSession.ts`). El middleware de Next (`lib/supabase/middleware.ts`)
+protege las rutas privadas y redirige a `/login` si no hay sesión.
+
+Rutas: `/login`, `/grupos`, `/grupos/[grupoId]`, y anidadas por grupo:
+`salidas` (+ `nueva`, `[salidaId]`), `presupuesto` (+ `[presupuestoId]`),
+`categorias`, `miembros`.
 
 ## Multi-moneda (preparado, no implementado)
 
@@ -138,16 +213,32 @@ cd backend
 cp .env.example .env   # llenar SUPABASE_URL / ANON_KEY / SERVICE_ROLE_KEY
 npm install
 npm run dev             # http://localhost:4000
+
+cd ../frontend
+cp .env.local.example .env.local   # llenar NEXT_PUBLIC_SUPABASE_URL / ANON_KEY
+npm install
+npm run dev             # http://localhost:3000
 ```
 
 Aplicar las migraciones en Supabase (SQL editor o `supabase db push`) en
-orden: `0001` → `0005`.
+orden: `0001` → `0008`.
+
+> ⚠️ Verificar qué proyecto de Supabase usar antes de configurar las claves:
+> el comentario en `0006_usuarios_trigger_alta.sql` dice que este proyecto
+> es **compartido** con la app "asistente", pero `frontend/.env.local.example`
+> dice que es un proyecto **dedicado** ("no el compartido con
+> asistente/quiniela"). Contradicción sin resolver — confirmar antes de
+> apuntar frontend y backend a proyectos distintos por error.
 
 ## Pendiente para la siguiente etapa
 
-- Frontend (dos layouts responsivos: >500px y <500px), a propósito no
-  incluido en esta entrega.
+- Deploy real a Vercel (backend y frontend están preparados — `api/index.ts`,
+  `vercel.json` — pero sin evidencia de deploy activo).
 - Conciliar `0002_tablas_base_asumidas.sql` con el schema real de Finanzas
   si difiere del supuesto.
-- Trigger en `auth.users` para poblar `public.usuarios` al registrarse
-  (no incluido: depende de cómo la app base maneje el signup).
+- Resolver la contradicción de qué proyecto de Supabase usar (ver aviso
+  arriba).
+- Verificar si los dos layouts responsivos (`>500px` y `<500px`) quedaron
+  cubiertos por `AppShell` o siguen pendientes.
+- Multi-moneda: decidir dónde vive la conversión si se activa (los campos
+  derivados actuales suman montos crudos sin normalizar moneda).

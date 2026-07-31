@@ -10,7 +10,9 @@ create table public.grupos (
   id uuid primary key default gen_random_uuid(),
   nombre text not null,
   tipo grupo_tipo not null default 'pareja',
-  creado_por uuid not null references public.usuarios (id),
+  -- Sin "not null": si se borra el usuario creador, el grupo sobrevive para
+  -- el resto de sus miembros (ver comment on column más abajo).
+  creado_por uuid references public.usuarios (id) on delete set null,
   created_at timestamptz not null default now(),
   constraint grupos_nombre_no_vacio check (btrim(nombre) <> '')
 );
@@ -31,7 +33,7 @@ create table public.invitaciones_grupo (
   id uuid primary key default gen_random_uuid(),
   grupo_id uuid not null references public.grupos (id) on delete cascade,
   codigo text not null unique,
-  creado_por uuid not null references public.usuarios (id),
+  creado_por uuid references public.usuarios (id) on delete set null,
   estado invitacion_estado not null default 'activo',
   expira_at timestamptz not null default (now() + interval '7 days'),
   created_at timestamptz not null default now(),
@@ -79,7 +81,7 @@ create table public.salidas (
   -- Preparado para multi-moneda a futuro: por ahora un solo código de moneda
   -- por salida, sin conversión ni tabla de tasas de cambio.
   moneda char(3) not null default 'MXN',
-  creado_por uuid not null references public.usuarios (id),
+  creado_por uuid references public.usuarios (id) on delete set null,
   created_at timestamptz not null default now(),
   constraint salidas_titulo_no_vacio check (btrim(titulo) <> ''),
   constraint salidas_costo_total_no_negativo check (costo_total >= 0)
@@ -93,7 +95,7 @@ comment on column public.salidas.costo_total is
 create table public.pagos_salida (
   id uuid primary key default gen_random_uuid(),
   salida_id uuid not null references public.salidas (id) on delete cascade,
-  usuario_id uuid not null references public.usuarios (id),
+  usuario_id uuid references public.usuarios (id) on delete set null,
   monto numeric(12, 2) not null check (monto > 0),
   banco text,
   captura_url text,
@@ -106,7 +108,7 @@ create index pagos_salida_usuario_idx on public.pagos_salida (usuario_id);
 create table public.reparto_salida (
   id uuid primary key default gen_random_uuid(),
   salida_id uuid not null references public.salidas (id) on delete cascade,
-  usuario_id uuid not null references public.usuarios (id),
+  usuario_id uuid references public.usuarios (id) on delete set null,
   monto_le_corresponde numeric(12, 2) not null check (monto_le_corresponde >= 0),
   liquidado boolean not null default false,
   unique (salida_id, usuario_id)
@@ -139,7 +141,7 @@ comment on column public.presupuestos_quincenales.monto_objetivo_total is
 create table public.aportes_presupuesto (
   id uuid primary key default gen_random_uuid(),
   presupuesto_id uuid not null references public.presupuestos_quincenales (id) on delete cascade,
-  usuario_id uuid not null references public.usuarios (id),
+  usuario_id uuid references public.usuarios (id) on delete set null,
   monto_comprometido numeric(12, 2) not null check (monto_comprometido >= 0),
   monto_aportado numeric(12, 2) not null default 0 check (monto_aportado >= 0),
   unique (presupuesto_id, usuario_id)

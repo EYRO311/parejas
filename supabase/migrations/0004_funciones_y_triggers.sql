@@ -68,9 +68,15 @@ $$;
 -- Invitaciones: generar código único y unirse a un grupo por código.
 -- ---------------------------------------------------------
 
+-- SECURITY DEFINER: el chequeo de colisión debe ver TODOS los códigos
+-- (cualquier grupo, cualquier estado), no solo los del grupo del llamador
+-- bajo su propio RLS -- "codigo" es unique a nivel de toda la tabla, no
+-- solo entre los códigos activos.
 create or replace function public.generar_codigo_invitacion()
 returns text
 language plpgsql
+security definer
+set search_path = public
 as $$
 declare
   v_codigo text;
@@ -80,7 +86,7 @@ begin
     v_codigo := upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
     select exists(
       select 1 from public.invitaciones_grupo
-      where codigo = v_codigo and estado = 'activo'
+      where codigo = v_codigo
     ) into v_existe;
     exit when not v_existe;
   end loop;
@@ -133,50 +139,75 @@ $$;
 -- hijas, nunca se confía en un valor enviado por el cliente.
 -- ---------------------------------------------------------
 
+-- Recalcula tanto la salida vieja como la nueva cuando pagos_salida.salida_id
+-- cambia de valor (reasignar un pago a otra salida), no solo cuando cambia
+-- el monto.
 create or replace function public.fn_recalcular_costo_salida()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  v_salida_id uuid := coalesce(new.salida_id, old.salida_id);
 begin
-  update public.salidas
-  set costo_total = coalesce(
-    (select sum(monto) from public.pagos_salida where salida_id = v_salida_id),
-    0
-  )
-  where id = v_salida_id;
+  if old.salida_id is not null then
+    update public.salidas
+    set costo_total = coalesce(
+      (select sum(monto) from public.pagos_salida where salida_id = old.salida_id),
+      0
+    )
+    where id = old.salida_id;
+  end if;
+
+  if new.salida_id is not null and new.salida_id is distinct from old.salida_id then
+    update public.salidas
+    set costo_total = coalesce(
+      (select sum(monto) from public.pagos_salida where salida_id = new.salida_id),
+      0
+    )
+    where id = new.salida_id;
+  end if;
+
   return null;
 end;
 $$;
 
 create trigger trg_pagos_salida_recalcular_costo
-after insert or update of monto or delete on public.pagos_salida
+after insert or update of monto, salida_id or delete on public.pagos_salida
 for each row execute function public.fn_recalcular_costo_salida();
 
+-- Igual que fn_recalcular_costo_salida: recalcula ambos presupuestos si
+-- aportes_presupuesto.presupuesto_id llega a cambiar de valor.
 create or replace function public.fn_recalcular_objetivo_presupuesto()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  v_presupuesto_id uuid := coalesce(new.presupuesto_id, old.presupuesto_id);
 begin
-  update public.presupuestos_quincenales
-  set monto_objetivo_total = coalesce(
-    (select sum(monto_comprometido) from public.aportes_presupuesto where presupuesto_id = v_presupuesto_id),
-    0
-  )
-  where id = v_presupuesto_id;
+  if old.presupuesto_id is not null then
+    update public.presupuestos_quincenales
+    set monto_objetivo_total = coalesce(
+      (select sum(monto_comprometido) from public.aportes_presupuesto where presupuesto_id = old.presupuesto_id),
+      0
+    )
+    where id = old.presupuesto_id;
+  end if;
+
+  if new.presupuesto_id is not null and new.presupuesto_id is distinct from old.presupuesto_id then
+    update public.presupuestos_quincenales
+    set monto_objetivo_total = coalesce(
+      (select sum(monto_comprometido) from public.aportes_presupuesto where presupuesto_id = new.presupuesto_id),
+      0
+    )
+    where id = new.presupuesto_id;
+  end if;
+
   return null;
 end;
 $$;
 
 create trigger trg_aportes_recalcular_objetivo
-after insert or update of monto_comprometido or delete on public.aportes_presupuesto
+after insert or update of monto_comprometido, presupuesto_id or delete on public.aportes_presupuesto
 for each row execute function public.fn_recalcular_objetivo_presupuesto();
 
 -- Protección: costo_total y monto_objetivo_total solo pueden cambiar
@@ -256,6 +287,15 @@ declare
   v_presupuesto record;
   v_total numeric(12, 2);
 begin
+  -- El backend la invoca con la service key (auth.role() = 'service_role'),
+  -- confiando en p_usuario_id/p_grupo_id. Si alguna vez se llama con el JWT
+  -- de un usuario normal (p. ej. directo contra PostgREST), solo puede
+  -- recalcular su propio aporte y solo en un grupo del que es miembro.
+  if auth.role() <> 'service_role'
+     and (auth.uid() is distinct from p_usuario_id or not public.es_miembro_grupo(p_grupo_id)) then
+    raise exception 'No autorizado para recalcular este gasto' using errcode = 'P0003';
+  end if;
+
   select id, quincena_inicio, quincena_fin
   into v_presupuesto
   from public.presupuestos_quincenales
