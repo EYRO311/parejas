@@ -44,7 +44,10 @@ export function UnirseGrupoForm() {
             value={codigo}
             onChange={(e) => setCodigo(e.target.value.toUpperCase())}
             placeholder="AB12CD"
-            className="font-mono tracking-widest"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            className="font-mono text-lg tracking-[0.3em] text-center"
           />
         </FormField>
 

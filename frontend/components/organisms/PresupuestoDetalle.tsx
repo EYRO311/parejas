@@ -6,6 +6,7 @@ import { cerrarPresupuesto, obtenerPresupuesto } from '@/services/presupuestos.s
 import { definirAportePropio } from '@/services/aportes.service';
 import { listarMiembros } from '@/services/miembros.service';
 import { AporteRow } from '@/components/molecules/AporteRow';
+import { ConfirmDialog } from '@/components/molecules/ConfirmDialog';
 import { Card } from '@/components/atoms/Card';
 import { Badge } from '@/components/atoms/Badge';
 import { MoneyText } from '@/components/atoms/MoneyText';
@@ -24,6 +25,8 @@ export function PresupuestoDetalle({ presupuestoId }: { presupuestoId: string })
   const [montoPropio, setMontoPropio] = useState('');
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [confirmarCierre, setConfirmarCierre] = useState(false);
+  const [cerrando, setCerrando] = useState(false);
 
   const cargar = useCallback(() => {
     if (!accessToken) return;
@@ -65,12 +68,15 @@ export function PresupuestoDetalle({ presupuestoId }: { presupuestoId: string })
 
   const handleCerrar = async () => {
     if (!accessToken) return;
-    if (!confirm('¿Cerrar esta quincena? Ya no se podrán editar aportes.')) return;
+    setCerrando(true);
     try {
       await cerrarPresupuesto(accessToken, presupuestoId);
       cargar();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cerrar la quincena');
+    } finally {
+      setCerrando(false);
+      setConfirmarCierre(false);
     }
   };
 
@@ -118,6 +124,7 @@ export function PresupuestoDetalle({ presupuestoId }: { presupuestoId: string })
               <Input
                 id="monto-propio"
                 type="number"
+                inputMode="decimal"
                 min={0}
                 step="0.01"
                 required
@@ -136,10 +143,21 @@ export function PresupuestoDetalle({ presupuestoId }: { presupuestoId: string })
       {error && <Alert>{error}</Alert>}
 
       {presupuesto.estado === 'activo' && soyAdmin && (
-        <Button variant="outline" size="sm" onClick={handleCerrar}>
+        <Button variant="outline" size="sm" onClick={() => setConfirmarCierre(true)}>
           Cerrar quincena
         </Button>
       )}
+
+      <ConfirmDialog
+        open={confirmarCierre}
+        titulo="¿Cerrar esta quincena?"
+        descripcion="Ya no se podrán editar los aportes de nadie."
+        confirmLabel="Cerrar quincena"
+        tone="danger"
+        cargando={cerrando}
+        onConfirm={handleCerrar}
+        onCancel={() => setConfirmarCierre(false)}
+      />
     </div>
   );
 }

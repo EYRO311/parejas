@@ -19,10 +19,10 @@ export function OptionCards<T extends string>({ options, value, onChange }: Opti
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
-          className={`flex flex-col items-center rounded-xl border px-3 py-4 text-center transition-colors ${
+          className={`flex flex-col items-center rounded-xl border px-3 py-4 text-center transition-all active:scale-[0.97] ${
             value === option.value
-              ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-border-soft hover:border-foreground/40'
+              ? 'border-primary bg-primary text-primary-foreground shadow-md shadow-primary/25'
+              : 'border-border-soft hover:border-foreground/40 hover:bg-surface/60'
           }`}
         >
           <span className="text-sm font-semibold">{option.label}</span>

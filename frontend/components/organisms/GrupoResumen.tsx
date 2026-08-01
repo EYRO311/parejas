@@ -39,8 +39,8 @@ export function GrupoResumen({ grupoId }: { grupoId: string }) {
             <Spinner />
           </div>
         ) : (
-          <Link href={`/grupos/${grupoId}/presupuesto/${presupuesto.id}`}>
-            <Card className="transition hover:border-primary/40">
+          <Link href={`/grupos/${grupoId}/presupuesto/${presupuesto.id}`} className="block">
+            <Card className="transition-all hover:border-primary/40 hover:bg-surface active:scale-[0.98]">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-foreground">
                   {formatFecha(presupuesto.quincena_inicio)} — {formatFecha(presupuesto.quincena_fin)}

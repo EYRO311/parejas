@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono, Caveat } from 'next/font/google';
+import { Geist_Mono, Playwrite_NZ_Guides, Playwrite_US_Modern } from 'next/font/google';
 import './globals.css';
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
-const caveat = Caveat({ variable: '--font-caveat', subsets: ['latin'] });
+const playwriteTitulos = Playwrite_NZ_Guides({ variable: '--font-playwrite-titulos', weight: '400' });
+const playwriteTexto = Playwrite_US_Modern({ variable: '--font-playwrite-texto', weight: 'variable' });
 
 export const metadata: Metadata = {
   title: 'Finanzas en Pareja',
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${geistSans.variable} ${geistMono.variable} ${caveat.variable}`}>
+    <html lang="es" className={`${geistMono.variable} ${playwriteTitulos.variable} ${playwriteTexto.variable}`}>
       <body className="antialiased">{children}</body>
     </html>
   );

@@ -10,6 +10,7 @@ import { MoneyText } from '@/components/atoms/MoneyText';
 import { Button } from '@/components/atoms/Button';
 import { Spinner } from '@/components/atoms/Spinner';
 import { Alert } from '@/components/atoms/Alert';
+import { ConfirmDialog } from '@/components/molecules/ConfirmDialog';
 import { PagosPanel } from './PagosPanel';
 import { RepartoPanel } from './RepartoPanel';
 import { formatFecha } from '@/lib/format';
@@ -21,6 +22,8 @@ export function SalidaDetalle({ grupoId, salidaId }: { grupoId: string; salidaId
   const [salida, setSalida] = useState<Salida | null>(null);
   const [miembros, setMiembros] = useState<MiembroGrupo[]>([]);
   const [error, setError] = useState('');
+  const [confirmarBorrar, setConfirmarBorrar] = useState(false);
+  const [borrando, setBorrando] = useState(false);
 
   const cargarSalida = useCallback(() => {
     if (!accessToken) return;
@@ -38,9 +41,13 @@ export function SalidaDetalle({ grupoId, salidaId }: { grupoId: string; salidaId
 
   const handleEliminar = async () => {
     if (!accessToken) return;
-    if (!confirm('¿Borrar esta salida? Se perderán sus pagos y reparto.')) return;
-    await eliminarSalida(accessToken, salidaId);
-    router.push(`/grupos/${grupoId}/salidas`);
+    setBorrando(true);
+    try {
+      await eliminarSalida(accessToken, salidaId);
+      router.push(`/grupos/${grupoId}/salidas`);
+    } finally {
+      setBorrando(false);
+    }
   };
 
   if (error) return <Alert>{error}</Alert>;
@@ -74,9 +81,20 @@ export function SalidaDetalle({ grupoId, salidaId }: { grupoId: string; salidaId
         <RepartoPanel salidaId={salidaId} costoTotal={salida.costo_total} miembros={miembros} />
       </Card>
 
-      <Button variant="danger" size="sm" onClick={handleEliminar}>
+      <Button variant="danger" size="sm" onClick={() => setConfirmarBorrar(true)}>
         Borrar salida
       </Button>
+
+      <ConfirmDialog
+        open={confirmarBorrar}
+        titulo="¿Borrar esta salida?"
+        descripcion="Se perderán sus pagos y su reparto. Esta acción no se puede deshacer."
+        confirmLabel="Borrar salida"
+        tone="danger"
+        cargando={borrando}
+        onConfirm={handleEliminar}
+        onCancel={() => setConfirmarBorrar(false)}
+      />
     </div>
   );
 }

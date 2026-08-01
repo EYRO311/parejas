@@ -27,7 +27,7 @@ export function InviteCodeBox({ invitacion }: { invitacion: InvitacionGrupo }) {
   };
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border-soft bg-surface px-4 py-3">
+    <div className="flex items-center gap-3 rounded-2xl border border-border-soft bg-surface/70 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm">
       <span className="flex-1 font-mono text-lg tracking-[0.3em] text-foreground">{invitacion.codigo}</span>
       <Badge tone={ESTADO_TONE[invitacion.estado]}>{ESTADO_LABEL[invitacion.estado]}</Badge>
       {invitacion.estado === 'activo' && (

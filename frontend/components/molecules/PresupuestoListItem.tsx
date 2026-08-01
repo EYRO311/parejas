@@ -8,7 +8,7 @@ export function PresupuestoListItem({ presupuesto, grupoId }: { presupuesto: Pre
   return (
     <Link
       href={`/grupos/${grupoId}/presupuesto/${presupuesto.id}`}
-      className="flex items-center justify-between gap-3 rounded-xl border border-border-soft bg-surface px-4 py-3 transition hover:border-primary/40"
+      className="flex items-center justify-between gap-3 rounded-2xl border border-border-soft bg-surface/70 px-4 py-3.5 shadow-sm shadow-black/20 backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-surface active:scale-[0.98]"
     >
       <div>
         <p className="text-sm font-medium text-foreground">

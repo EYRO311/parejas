@@ -91,6 +91,7 @@ export function PagosPanel({ salidaId, moneda, miembros, onCambio }: PagosPanelP
         <div className="flex-1 min-w-24">
           <Input
             type="number"
+            inputMode="decimal"
             min={0.01}
             step="0.01"
             required

@@ -13,7 +13,10 @@ export function ProgressBar({ valor, maximo, className }: ProgressBarProps) {
   return (
     <div className={cn('h-2 w-full overflow-hidden rounded-full bg-border-soft/60', className)}>
       <div
-        className={cn('h-full rounded-full transition-all', sobrepasado ? 'bg-danger' : 'bg-primary')}
+        className={cn(
+          'h-full rounded-full transition-all duration-500 ease-out',
+          sobrepasado ? 'bg-danger' : 'bg-gradient-to-r from-primary to-accent'
+        )}
         style={{ width: `${porcentaje}%` }}
         role="progressbar"
         aria-valuenow={valor}
