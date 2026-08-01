@@ -1,4 +1,4 @@
-import { IconHome, IconReceipt2, IconTags, IconUsers, IconWallet } from '@tabler/icons-react';
+import { IconChartBar, IconHome, IconReceipt2, IconTags, IconUsers, IconWallet } from '@tabler/icons-react';
 import type { NavItem } from './AppShell';
 
 const ICON_PROPS = { size: 20, stroke: 1.5 } as const;
@@ -12,6 +12,7 @@ export function navGrupo(grupoId: string): NavItem[] {
   return [
     { href: base, label: 'Resumen', icon: <IconHome {...ICON_PROPS} /> },
     { href: `${base}/salidas`, label: 'Salidas', icon: <IconReceipt2 {...ICON_PROPS} /> },
+    { href: `${base}/gastos`, label: 'Gastos', icon: <IconChartBar {...ICON_PROPS} /> },
     { href: `${base}/presupuesto`, label: 'Presupuesto', icon: <IconWallet {...ICON_PROPS} /> },
     { href: `${base}/categorias`, label: 'Categorías', icon: <IconTags {...ICON_PROPS} /> },
     { href: `${base}/miembros`, label: 'Miembros', icon: <IconUsers {...ICON_PROPS} /> },

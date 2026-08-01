@@ -57,3 +57,31 @@ export async function eliminarPago(supabase: SupabaseClient, pagoId: string): Pr
   const { error } = await supabase.from('pagos_salida').delete().eq('id', pagoId);
   if (error) throw new HttpError(400, error.message);
 }
+
+/**
+ * Todos los pagos del grupo (de todas sus salidas), con el nombre de quien
+ * pagó embebido. Base para el dashboard de gastos por usuario. RLS ya
+ * garantiza que solo se vean pagos de salidas de grupos donde el usuario
+ * que consulta es miembro (pagos_salida_select en 0005_rls_policies.sql).
+ */
+export async function listarPagosDeGrupo(
+  supabase: SupabaseClient,
+  grupoId: string
+): Promise<Array<PagoSalida & { usuarios: { nombre: string } | null }>> {
+  const { data: salidas, error: errorSalidas } = await supabase
+    .from('salidas')
+    .select('id')
+    .eq('grupo_id', grupoId);
+  if (errorSalidas) throw new HttpError(500, errorSalidas.message);
+
+  const salidaIds = (salidas ?? []).map((s) => s.id);
+  if (salidaIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('pagos_salida')
+    .select('*, usuarios(nombre)')
+    .in('salida_id', salidaIds)
+    .order('created_at', { ascending: true });
+  if (error) throw new HttpError(500, error.message);
+  return (data ?? []) as any;
+}

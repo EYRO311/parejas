@@ -94,6 +94,20 @@ export interface AportePresupuesto {
   monto_aportado: number;
 }
 
+export interface SalidaDeGasto {
+  salidaId: string;
+  titulo: string;
+  fecha: string;
+  monto: number;
+}
+
+export interface GastoPorUsuario {
+  usuarioId: string;
+  nombre: string;
+  total: number;
+  salidas: SalidaDeGasto[];
+}
+
 export interface ApiErrorBody {
   error: string;
 }

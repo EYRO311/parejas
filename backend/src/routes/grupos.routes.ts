@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as GruposController from '../controllers/grupos.controller';
+import * as DashboardController from '../controllers/dashboard.controller';
 import { requireAdminGrupo, requireMiembroGrupo } from '../middlewares/grupoMembership.middleware';
 import miembrosRouter from './miembros.routes';
 import invitacionesRouter from './invitaciones.routes';
@@ -21,5 +22,6 @@ router.use('/:grupoId/invitaciones', requireMiembroGrupo(), invitacionesRouter);
 router.use('/:grupoId/categorias', requireMiembroGrupo(), categoriasRouter);
 router.use('/:grupoId/salidas', requireMiembroGrupo(), salidasDeGrupoRouter);
 router.use('/:grupoId/presupuestos', requireMiembroGrupo(), presupuestosDeGrupoRouter);
+router.get('/:grupoId/dashboard/gastos', requireMiembroGrupo(), DashboardController.gastosPorUsuario);
 
 export default router;
