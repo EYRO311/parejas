@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const RUTAS_PUBLICAS = ['/login', '/registro'];
+const RUTAS_PUBLICAS = ['/login', '/registro', '/actualizar-password'];
 
 /** Refresca la sesión de Supabase en cada request y protege las rutas privadas. */
 export async function updateSession(request: NextRequest) {

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { IconArrowLeft, IconLogout } from '@tabler/icons-react';
+import { IconArrowLeft, IconKey, IconLogout } from '@tabler/icons-react';
 
 export interface NavItem {
   href: string;
@@ -67,6 +67,13 @@ export function AppShell({ titulo, nav, backHref, children }: AppShellProps) {
             );
           })}
         </nav>
+        <Link
+          href="/actualizar-password"
+          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-surface/60 hover:text-foreground"
+        >
+          <IconKey size={20} stroke={1.5} />
+          Cambiar contraseña
+        </Link>
         <button
           onClick={cerrarSesion}
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-surface/60 hover:text-foreground"
@@ -90,13 +97,22 @@ export function AppShell({ titulo, nav, backHref, children }: AppShellProps) {
           <span className="w-9" />
         )}
         <p className="text-sm font-semibold text-foreground">{titulo}</p>
-        <button
-          onClick={cerrarSesion}
-          aria-label="Cerrar sesión"
-          className="-mr-2 flex h-9 w-9 items-center justify-center rounded-full text-muted active:bg-surface"
-        >
-          <IconLogout size={18} stroke={1.5} />
-        </button>
+        <div className="-mr-2 flex items-center">
+          <Link
+            href="/actualizar-password"
+            aria-label="Cambiar contraseña"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-muted active:bg-surface"
+          >
+            <IconKey size={18} stroke={1.5} />
+          </Link>
+          <button
+            onClick={cerrarSesion}
+            aria-label="Cerrar sesión"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-muted active:bg-surface"
+          >
+            <IconLogout size={18} stroke={1.5} />
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 px-4 py-4 pb-24 sm:px-8 sm:py-6 sm:pb-6">
