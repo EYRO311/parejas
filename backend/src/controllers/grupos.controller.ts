@@ -7,7 +7,7 @@ import type { GrupoTipo } from '../types';
 const TIPOS_VALIDOS: GrupoTipo[] = ['pareja', 'familia', 'roommates'];
 
 export const listar = asyncHandler(async (req: Request, res: Response) => {
-  const grupos = await GruposModel.listarGruposDeUsuario(req.supabase);
+  const grupos = await GruposModel.listarGruposDeUsuario(req.supabase, req.usuario.id);
   res.json(grupos);
 });
 

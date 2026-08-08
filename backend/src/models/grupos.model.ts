@@ -2,14 +2,30 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { HttpError } from '../utils/httpError';
 import type { Grupo, GrupoTipo } from '../types';
 
-export async function listarGruposDeUsuario(supabase: SupabaseClient): Promise<Grupo[]> {
+export async function listarGruposDeUsuario(
+  supabase: SupabaseClient,
+  usuarioId: string
+): Promise<Grupo[]> {
+  // La policy miembros_grupo_select deja ver a TODOS los miembros de los
+  // grupos propios, así que sin filtrar por usuario_id el grupo se repite
+  // una vez por cada miembro.
   const { data, error } = await supabase
     .from('miembros_grupo')
     .select('grupos(*)')
+    .eq('usuario_id', usuarioId)
     .eq('activo', true);
 
   if (error) throw new HttpError(500, error.message);
-  return (data ?? []).map((fila: any) => fila.grupos as Grupo);
+
+  const vistos = new Set<string>();
+  const grupos: Grupo[] = [];
+  for (const fila of (data ?? []) as any[]) {
+    const grupo = fila.grupos as Grupo | null;
+    if (!grupo || vistos.has(grupo.id)) continue;
+    vistos.add(grupo.id);
+    grupos.push(grupo);
+  }
+  return grupos;
 }
 
 export async function obtenerGrupo(supabase: SupabaseClient, grupoId: string): Promise<Grupo> {
